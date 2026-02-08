@@ -24,7 +24,7 @@ public class ClusterBasedIndex {
 
     private static final int K_MEANS_ITERATIONS = 300;
     private static final float SAMPLE_SIZE_PCT = 0.1f;
-    private static final float PCT_OF_CLUSTERS_TO_SEARCH = 0.01f;
+    private static final float PCT_OF_CLUSTERS_TO_SEARCH = 0.05f;
     private static final long SEED = 1234212342L;
     private static final VectorSampler SAMPLER = new VectorSampler(SEED);
     private ClusterIndex clusterIndex;
@@ -93,6 +93,19 @@ public class ClusterBasedIndex {
             System.out.println("============== Cluster Index is null. Returning ==============");
             return;
         }
+
+        System.out.println("\n=== Index Configuration ===");
+        System.out.println("K-Means iterations: " + K_MEANS_ITERATIONS);
+        System.out.println("Sample size: " + (SAMPLE_SIZE_PCT * 100) + "%");
+        System.out.println("Samples used: " + (int)(SAMPLE_SIZE_PCT * clusterIndex.getVectors().getTotalNumberOfVectors()));
+        System.out.println("Number of clusters (k): " + clusterIndex.getTotalCentroids());
+        System.out.println("Clusters to search: " + (PCT_OF_CLUSTERS_TO_SEARCH * 100) + "%");
+        System.out.println("Clusters searched per query: " + Math.max(1, (int)(PCT_OF_CLUSTERS_TO_SEARCH * clusterIndex.getTotalCentroids())));
+        System.out.println("Distance metric: Euclidean (squared)");
+        System.out.println("Random seed: " + SEED);
+        System.out.println("Storage type: " + clusterIndex.getVectors().getClass().getSimpleName());
+        System.out.println("===========================");
+
         clusterIndex.printClusterIndexStats();
     }
 
@@ -107,11 +120,11 @@ public class ClusterBasedIndex {
         // 1. Find minClustersToSearch aka centroids closer to query vectors
         final PriorityQueue<IdAndDistance> closestCentroids = findNearestCentroids(queryVector, minClustersToSearch);
 
-        // 2. Now for each centroid do a brute force search in parallel, TODO: use Virtual threads here
+        // 2. Now for each centroid do a brute force search TODO: use Virtual threads here and do search in parallel
         final PriorityQueue<IdAndDistance> topKQueue = new PriorityQueue<>(topK,
                 Comparator.comparingDouble(IdAndDistance::getDistance).reversed());
         while(!closestCentroids.isEmpty()) {
-            int cId = closestCentroids.peek().id;
+            int cId = closestCentroids.poll().id;
             IntegerList postingList = clusterIndex.getPostingsListArray()[cId];
             if(postingList != null) {
                 computeTopKForCentroid(queryVector, topK, postingList, topKQueue);

@@ -58,25 +58,82 @@ See [algo_notes.md](algo_notes.md) for detailed algorithm explanation.
 
 ## Performance
 All performance benchmarks are done on Apple M3 Pro 36GB RAM
+Tested on SIFT-128 dataset (1M vectors, 128 dimensions):
+- Index build time: 132 seconds  
+- Search time (P50): 7ms
+- Search time (P90): 8ms 
+- Search time (P99): 11ms 
+- Recall@100: 0.98
 
 ### Iteration 1
-Tested on SIFT-128 dataset (1M vectors, 128 dimensions):
-- Index build time: 170 seconds  
-- Search time (P50): TBA 
-- Recall@100: TBA
 
+```java
+private static final int K_MEANS_ITERATIONS = 300;
+private static final float SAMPLE_SIZE_PCT = 0.1f;
+private static final float PCT_OF_CLUSTERS_TO_SEARCH = 0.01f;
 ```
-Index built in 169788 ms, where addTime : 56 build time: 169732
+```
+Index built in 176221 ms, where addTime: 59 ms, build time: 176162 ms
 
 === Cluster Index Statistics ===
 Number of clusters: 1000
 Centroid dimensions: 128
 Total vectors: 1000000
 Empty clusters: 0
-Min cluster size: 2
-Max cluster size: 3776
+Min cluster size: 134
+Max cluster size: 3852
 Avg cluster size: 1000
 =================================
+
+Testing search...
+Recall is : 0.804492
+
+Search Time Percentiles:
+P50: 1 ms
+P90: 2 ms
+P99: 3 ms
+P100: 44 ms
+```
+
+### Iteration 2
+
+```
+Starting the build process for index
+Index built in 132864 ms, where addTime: 38 ms, build time: 132826 ms
+
+=== Index Configuration ===
+K-Means iterations: 300
+Sample size: 10.0%
+Samples used: 100000
+Number of clusters (k): 1000
+Clusters to search: 5.0%
+Clusters searched per query: 50
+Distance metric: Euclidean (squared)
+Random seed: 1234212342
+Storage type: OffHeapVectorsStorage
+===========================
+
+
+=== Cluster Index Statistics ===
+Number of clusters: 1000
+Centroid dimensions: 128
+Total vectors: 1000000
+Empty clusters: 0
+Min cluster size: 137
+Max cluster size: 3664
+Avg cluster size: 1000
+=================================
+
+Testing search...
+
+Recall is : 0.9827
+
+Search Time Percentiles:
+P50: 7 ms
+P90: 8 ms
+P99: 11 ms
+P100: 88 ms
+
 ```
 
 ## Project Structure
