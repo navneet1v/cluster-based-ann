@@ -1,5 +1,7 @@
 plugins {
     id 'java'
+    id 'application'
+    id 'io.freefair.lombok' version '8.4'
 }
 
 group = 'org.navneev'
@@ -10,11 +12,53 @@ repositories {
 }
 
 dependencies {
+    // Boilerplate reduction (getters, setters, constructors)
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+
+    // Reading HDF5 dataset files for ANN benchmarks
+    implementation 'io.jhdf:jhdf:0.6.10'
+
+    // Unit testing framework
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testCompileOnly 'org.projectlombok:lombok:1.18.30'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
 }
 
+// Use Java 23 toolchain
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(23)
+    }
+}
+
+// Enable Vector API and preview features for compilation
+compileJava {
+    options.compilerArgs += ['--add-modules', 'jdk.incubator.vector', '--enable-preview']
+}
+
+// Enable Vector API and preview features for test compilation
+compileTestJava {
+    options.compilerArgs += ['--add-modules', 'jdk.incubator.vector', '--enable-preview']
+}
+
+// Configure test execution with Vector API support
 test {
     useJUnitPlatform()
+    jvmArgs '--add-modules', 'jdk.incubator.vector', '--enable-preview'
+}
+
+// Set main class for application plugin
+application {
+    mainClass = 'org.navneev.Main'
+}
+
+// Configure runtime with custom heap size and Vector API
+run {
+    def xms = System.getProperty('xms', '4g')
+    def xmx = System.getProperty('xmx', '4g')
+    jvmArgs '--add-modules', 'jdk.incubator.vector', '--enable-preview', "-Xms${xms}", "-Xmx${xmx}"
+    systemProperties = System.properties
 }
