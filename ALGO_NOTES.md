@@ -168,8 +168,14 @@ Where:
 
 ### Improvements to be added
 1. **Parallel Search**: Use virtual threads for concurrent cluster search
-2. **Adaptive Search**: Dynamically adjust clusters searched based on query
-3. **Graph Refinement**: Build HNSW graph within each cluster
+2. **Search Performance** : Improve the storage of vectors so that vectors belonging to same cluster are stored 
+   together.
+3. **Adaptive Search**: Dynamically adjust clusters searched based on query
+4. **Graph Refinement**: Build HNSW graph within each cluster
+5. **K-mean**: Implement k-means++ with balanced k-Means 
+6. Figure out a way to bring the balance in the centroid assignment to ensure that a single centroid is not large in 
+   size. 
+7. Implement Rabbit-Q technique to see how much speed up we can gain.
 
 ## References
 

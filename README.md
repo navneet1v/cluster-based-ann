@@ -1,6 +1,7 @@
 # Cluster-Based Approximate Nearest Neighbor (ANN) Search
 
-A high-performance Java library implementing cluster-based approximate nearest neighbor search using k-means clustering and SIMD-optimized distance calculations.
+A Java library implementing cluster-based approximate nearest neighbor search using k-means clustering and SIMD-optimized distance calculations.
+This is mainly for understanding the algorithm and what potential optimizations you can do. 
 
 ## Features
 
