@@ -1,27 +1,28 @@
 package org.navneev.sampler;
 
+import java.util.Random;
 import org.navneev.model.IntegerList;
 
-import java.util.Random;
-
 /**
- * Samples vector IDs using reservoir sampling algorithm.
- * Guarantees uniform distribution without replacement.
+ * Samples vector IDs using reservoir sampling algorithm. Guarantees uniform distribution without
+ * replacement.
  */
 public class VectorSampler {
-    
+
     private final Random random;
-    
+
     /**
      * Creates sampler with specified seed for reproducible results.
+     *
      * @param seed random seed
      */
     public VectorSampler(long seed) {
         this.random = new Random(seed);
     }
-    
+
     /**
      * Samples vector IDs using reservoir sampling.
+     *
      * @param numVectors total number of vectors (0 to numVectors-1)
      * @param sampleSize number of IDs to sample
      * @return array of sampled vector IDs
@@ -32,7 +33,7 @@ public class VectorSampler {
         }
 
         IntegerList reservoir = new IntegerList(sampleSize);
-        //1. Initialize reservoir
+        // 1. Initialize reservoir
         for (int i = 0; i < sampleSize; i++) {
             reservoir.add(i);
         }
@@ -41,7 +42,7 @@ public class VectorSampler {
         for (int i = sampleSize; i < numVectors; i++) {
             // to generate values from [0 to i]
             int j = random.nextInt(i + 1);
-            if(j < sampleSize) {
+            if (j < sampleSize) {
                 reservoir.update(j, i);
             }
         }

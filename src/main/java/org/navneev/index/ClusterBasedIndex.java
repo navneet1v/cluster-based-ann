@@ -1,8 +1,13 @@
 package org.navneev.index;
 
+import java.lang.foreign.MemorySegment;
+import java.util.Comparator;
+import java.util.Objects;
+import java.util.PriorityQueue;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.navneev.clustering.KMeans;
+import org.navneev.io.ClusterIndexIo;
 import org.navneev.model.ClusterIndex;
 import org.navneev.model.IntegerList;
 import org.navneev.sampler.VectorSampler;
@@ -11,14 +16,9 @@ import org.navneev.storage.VectorStorage;
 import org.navneev.utils.EnvironmentUtils;
 import org.navneev.utils.VectorDistanceCalculationUtils;
 
-import java.lang.foreign.MemorySegment;
-import java.util.Comparator;
-import java.util.Objects;
-import java.util.PriorityQueue;
-
 /**
- * Cluster-based index for approximate nearest neighbor search.
- * Uses k-means clustering to partition vectors and enable efficient similarity search.
+ * Cluster-based index for approximate nearest neighbor search. Uses k-means clustering to partition
+ * vectors and enable efficient similarity search.
  */
 public class ClusterBasedIndex {
 
@@ -28,33 +28,40 @@ public class ClusterBasedIndex {
     private static final long SEED = 1234212342L;
     private static final VectorSampler SAMPLER = new VectorSampler(SEED);
     private ClusterIndex clusterIndex;
-
+    private ClusterIndexIo clusterIndexIo = new ClusterIndexIo();
 
     /**
      * Builds the cluster-based index from the given vectors.
+     *
      * @param vectors the vector storage containing all vectors to index
      */
     public void buildIndex(final VectorStorage vectors) {
         // 0. Receive vectors in off heap space already.
         // 2. Sample Vectors Ids for K-Means
-        final IntegerList sampledVectorIds = SAMPLER.sample(vectors.getTotalNumberOfVectors(),
-                (int)(vectors.getTotalNumberOfVectors() * SAMPLE_SIZE_PCT));
+        final IntegerList sampledVectorIds =
+                SAMPLER.sample(
+                        vectors.getTotalNumberOfVectors(),
+                        (int) (vectors.getTotalNumberOfVectors() * SAMPLE_SIZE_PCT));
         // 3. Run K-Means to get the centroid.
-        KMeans kMeans = new KMeans((int)Math.ceil(Math.sqrt(vectors.getTotalNumberOfVectors())), K_MEANS_ITERATIONS);
+        KMeans kMeans =
+                new KMeans(
+                        (int) Math.ceil(Math.sqrt(vectors.getTotalNumberOfVectors())),
+                        K_MEANS_ITERATIONS);
         // TODO: use the assignment here which is already done later.
         kMeans.fit(sampledVectorIds, vectors);
 
         final float[][] centroids = kMeans.getCentroids();
 
-        if(EnvironmentUtils.isDebug()) {
+        if (EnvironmentUtils.isDebug()) {
             // Compute distances between centroids
             printCentroidDistances(centroids);
         }
 
         int totalNumberOfCentroids = centroids.length;
-        final VectorStorage centroidsStorage = new OffHeapVectorsStorage(centroids[0].length, centroids.length);
+        final VectorStorage centroidsStorage =
+                new OffHeapVectorsStorage(centroids[0].length, centroids.length);
         // moving all centroids to off heap, not sure if this is right thing to do here.
-        for(int i = 0 ; i < centroidsStorage.getTotalNumberOfVectors(); i++) {
+        for (int i = 0; i < centroidsStorage.getTotalNumberOfVectors(); i++) {
             centroidsStorage.addVector(i, centroids[i]);
         }
 
@@ -62,34 +69,38 @@ public class ClusterBasedIndex {
 
         // 4. Assign Vector Ids to Centroids
         MemorySegment vectorMemorySegment;
-        for(int i = 0 ; i < vectors.getTotalNumberOfVectors(); i ++) {
+        for (int i = 0; i < vectors.getTotalNumberOfVectors(); i++) {
             int assignedCentroid = 0;
             vectorMemorySegment = vectors.getMemorySegment(i);
-            float minDistance = VectorDistanceCalculationUtils.euclideanDistance(vectorMemorySegment,
-                    centroidsStorage.getMemorySegment(assignedCentroid), vectors.getDimensions());
-            for(int j = 1 ; j < totalNumberOfCentroids; j++) {
-                float newCentroidDis = VectorDistanceCalculationUtils.euclideanDistance(vectorMemorySegment,
-                    centroidsStorage.getMemorySegment(j), vectors.getDimensions());
-                // We should see how we want to handle the == case separately. But currently just use this.
-                if(newCentroidDis <= minDistance) {
+            float minDistance =
+                    VectorDistanceCalculationUtils.euclideanDistance(
+                            vectorMemorySegment,
+                            centroidsStorage.getMemorySegment(assignedCentroid),
+                            vectors.getDimensions());
+            for (int j = 1; j < totalNumberOfCentroids; j++) {
+                float newCentroidDis =
+                        VectorDistanceCalculationUtils.euclideanDistance(
+                                vectorMemorySegment,
+                                centroidsStorage.getMemorySegment(j),
+                                vectors.getDimensions());
+                // We should see how we want to handle the == case separately. But currently just
+                // use this.
+                if (newCentroidDis <= minDistance) {
                     minDistance = newCentroidDis;
                     assignedCentroid = j;
                 }
             }
-            if(postingsList[assignedCentroid] == null) {
+            if (postingsList[assignedCentroid] == null) {
                 postingsList[assignedCentroid] = new IntegerList();
             }
             postingsList[assignedCentroid].add(i);
         }
         clusterIndex = new ClusterIndex(centroidsStorage, postingsList, vectors);
-
     }
 
-    /**
-     * Prints statistics about the cluster index.
-     */
+    /** Prints statistics about the cluster index. */
     public void printStats() {
-        if(clusterIndex == null) {
+        if (clusterIndex == null) {
             System.out.println("============== Cluster Index is null. Returning ==============");
             return;
         }
@@ -97,10 +108,20 @@ public class ClusterBasedIndex {
         System.out.println("\n=== Index Configuration ===");
         System.out.println("K-Means iterations: " + K_MEANS_ITERATIONS);
         System.out.println("Sample size: " + (SAMPLE_SIZE_PCT * 100) + "%");
-        System.out.println("Samples used: " + (int)(SAMPLE_SIZE_PCT * clusterIndex.getVectors().getTotalNumberOfVectors()));
+        System.out.println(
+                "Samples used: "
+                        + (int)
+                                (SAMPLE_SIZE_PCT
+                                        * clusterIndex.getVectors().getTotalNumberOfVectors()));
         System.out.println("Number of clusters (k): " + clusterIndex.getTotalCentroids());
         System.out.println("Clusters to search: " + (PCT_OF_CLUSTERS_TO_SEARCH * 100) + "%");
-        System.out.println("Clusters searched per query: " + Math.max(1, (int)(PCT_OF_CLUSTERS_TO_SEARCH * clusterIndex.getTotalCentroids())));
+        System.out.println(
+                "Clusters searched per query: "
+                        + Math.max(
+                                1,
+                                (int)
+                                        (PCT_OF_CLUSTERS_TO_SEARCH
+                                                * clusterIndex.getTotalCentroids())));
         System.out.println("Distance metric: Euclidean (squared)");
         System.out.println("Random seed: " + SEED);
         System.out.println("Storage type: " + clusterIndex.getVectors().getClass().getSimpleName());
@@ -111,60 +132,71 @@ public class ClusterBasedIndex {
 
     /**
      * Searches for the top-K nearest neighbors to the query vector.
+     *
      * @param queryVector the query vector
      * @param topK number of nearest neighbors to return
      * @return array of vector IDs representing the top-K nearest neighbors
      */
     public int[] search(float[] queryVector, int topK) {
-        int minClustersToSearch = Math.max(1, (int)(PCT_OF_CLUSTERS_TO_SEARCH * clusterIndex.getTotalCentroids()));
+        int minClustersToSearch =
+                Math.max(1, (int) (PCT_OF_CLUSTERS_TO_SEARCH * clusterIndex.getTotalCentroids()));
         // 1. Find minClustersToSearch aka centroids closer to query vectors
-        final PriorityQueue<IdAndDistance> closestCentroids = findNearestCentroids(queryVector, minClustersToSearch);
+        final PriorityQueue<IdAndDistance> closestCentroids =
+                findNearestCentroids(queryVector, minClustersToSearch);
 
-        // 2. Now for each centroid do a brute force search TODO: use Virtual threads here and do search in parallel
-        final PriorityQueue<IdAndDistance> topKQueue = new PriorityQueue<>(topK,
-                Comparator.comparingDouble(IdAndDistance::getDistance).reversed());
-        while(!closestCentroids.isEmpty()) {
+        // 2. Now for each centroid do a brute force search TODO: use Virtual threads here and do
+        // search in parallel
+        final PriorityQueue<IdAndDistance> topKQueue =
+                new PriorityQueue<>(
+                        topK, Comparator.comparingDouble(IdAndDistance::getDistance).reversed());
+        while (!closestCentroids.isEmpty()) {
             int cId = closestCentroids.poll().id;
             IntegerList postingList = clusterIndex.getPostingsListArray()[cId];
-            if(postingList != null) {
+            if (postingList != null) {
                 computeTopKForCentroid(queryVector, topK, postingList, topKQueue);
             }
         }
         // TODO: Merge the results and return topK from different threads
         final int[] finalResults = new int[topKQueue.size()];
-        for(int i = topKQueue.size() - 1; i >=0 ; i --) {
+        for (int i = topKQueue.size() - 1; i >= 0; i--) {
             finalResults[i] = Objects.requireNonNull(topKQueue.poll()).getId();
         }
         return finalResults;
     }
 
-    private void computeTopKForCentroid(float[] queryVector, int topK, IntegerList postingsList,
-                                        PriorityQueue<IdAndDistance> resultQueue) {
+    private void computeTopKForCentroid(
+            float[] queryVector,
+            int topK,
+            IntegerList postingsList,
+            PriorityQueue<IdAndDistance> resultQueue) {
         final VectorStorage flatVectors = clusterIndex.getVectors();
-        for(int i = 0 ; i < postingsList.size(); i++) {
+        for (int i = 0; i < postingsList.size(); i++) {
             float dis =
-                    VectorDistanceCalculationUtils.euclideanDistance(flatVectors.getMemorySegment(postingsList.get(i)), queryVector);
+                    VectorDistanceCalculationUtils.euclideanDistance(
+                            flatVectors.getMemorySegment(postingsList.get(i)), queryVector);
             addWithSizeConstraints(new IdAndDistance(postingsList.get(i), dis), topK, resultQueue);
         }
     }
 
-
     private PriorityQueue<IdAndDistance> findNearestCentroids(float[] queryVector, int size) {
         // create a max heap of closest centroids
         PriorityQueue<IdAndDistance> closestCentroids =
-                new PriorityQueue<>(size, Comparator.comparingDouble(IdAndDistance::getDistance).reversed());
+                new PriorityQueue<>(
+                        size, Comparator.comparingDouble(IdAndDistance::getDistance).reversed());
         int totalNumberOfCentroids = clusterIndex.getTotalCentroids();
-        for(int i = 0 ; i < totalNumberOfCentroids; i++) {
+        for (int i = 0; i < totalNumberOfCentroids; i++) {
             // We can use bulk SIMD here.
             float dis =
-                    VectorDistanceCalculationUtils.euclideanDistance(clusterIndex.getCentroidStorage().getMemorySegment(i), queryVector);
+                    VectorDistanceCalculationUtils.euclideanDistance(
+                            clusterIndex.getCentroidStorage().getMemorySegment(i), queryVector);
             addWithSizeConstraints(new IdAndDistance(i, dis), size, closestCentroids);
         }
         return closestCentroids;
     }
 
-    private void addWithSizeConstraints(IdAndDistance item, int maxSize, PriorityQueue<IdAndDistance> queue) {
-        if(queue.size() >= maxSize) {
+    private void addWithSizeConstraints(
+            IdAndDistance item, int maxSize, PriorityQueue<IdAndDistance> queue) {
+        if (queue.size() >= maxSize) {
             assert queue.peek() != null;
             if (queue.peek().getDistance() > item.getDistance()) {
                 queue.poll();
@@ -177,25 +209,41 @@ public class ClusterBasedIndex {
 
     private void printCentroidDistances(float[][] centroids) {
         System.out.println("=== Centroid Distance Matrix ===");
-        
+
         // Collect all distances with their centroid pairs
         java.util.List<CentroidPair> distances = new java.util.ArrayList<>();
         for (int i = 0; i < centroids.length; i++) {
             for (int j = i + 1; j < centroids.length; j++) {
-                float distance = VectorDistanceCalculationUtils.euclideanDistance(centroids[i], centroids[j]);
+                float distance =
+                        VectorDistanceCalculationUtils.euclideanDistance(
+                                centroids[i], centroids[j]);
                 distances.add(new CentroidPair(i, j, distance));
             }
         }
-        
+
         // Sort by distance (smallest to largest)
         distances.sort(Comparator.comparingDouble(CentroidPair::getDistance));
-        
+
         // Print sorted distances
         for (CentroidPair pair : distances) {
-            System.out.printf("Distance between centroid %d and %d: %.4f%n", 
-                pair.getId1(), pair.getId2(), pair.getDistance());
+            System.out.printf(
+                    "Distance between centroid %d and %d: %.4f%n",
+                    pair.getId1(), pair.getId2(), pair.getDistance());
         }
         System.out.println("=================================");
+    }
+
+    public void serializeIndex(String fileName) {
+        clusterIndexIo.deleteFilesIfExist(fileName);
+        clusterIndexIo.writeIndex(fileName, clusterIndex);
+    }
+
+    public void deSerializeIndex(String fileName) {
+        if (clusterIndexIo.validateFileExist(fileName)) {
+            clusterIndex = clusterIndexIo.readIndex(fileName);
+        } else {
+            throw new RuntimeException("Index file does not exist");
+        }
     }
 
     @Getter
@@ -204,7 +252,7 @@ public class ClusterBasedIndex {
         int id;
         float distance;
     }
-    
+
     @Getter
     @AllArgsConstructor
     private static class CentroidPair {

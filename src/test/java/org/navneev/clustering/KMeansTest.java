@@ -1,13 +1,13 @@
 package org.navneev.clustering;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.Test;
 import org.navneev.sampler.VectorSampler;
 import org.navneev.storage.OffHeapVectorsStorage;
 import org.navneev.storage.VectorStorage;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class KMeansTest {
 
@@ -16,13 +16,13 @@ class KMeansTest {
     @Test
     void testSimpleClustering() {
         float[][] data = {
-                {1.0f, 1.0f},
-                {1.5f, 2.0f},
-                {3.0f, 4.0f},
-                {5.0f, 7.0f},
-                {3.5f, 5.0f},
-                {4.5f, 5.0f},
-                {3.5f, 4.5f}
+            {1.0f, 1.0f},
+            {1.5f, 2.0f},
+            {3.0f, 4.0f},
+            {5.0f, 7.0f},
+            {3.5f, 5.0f},
+            {4.5f, 5.0f},
+            {3.5f, 4.5f}
         };
 
         VectorStorage vectorStorage = new OffHeapVectorsStorage(2, data.length);
@@ -75,10 +75,10 @@ class KMeansTest {
     @Test
     void testExactClusters() {
         float[][] data = {
-                {0.0f, 0.0f},
-                {0.0f, 0.0f},
-                {10.0f, 10.0f},
-                {10.0f, 10.0f}
+            {0.0f, 0.0f},
+            {0.0f, 0.0f},
+            {10.0f, 10.0f},
+            {10.0f, 10.0f}
         };
 
         VectorStorage vectorStorage = new OffHeapVectorsStorage(2, data.length);

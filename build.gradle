@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'application'
     id 'io.freefair.lombok' version '8.4'
+    id 'com.diffplug.spotless' version '6.25.0'
 }
 
 group = 'org.navneev'
@@ -61,4 +62,15 @@ run {
     def xmx = System.getProperty('xmx', '4g')
     jvmArgs '--add-modules', 'jdk.incubator.vector', '--enable-preview', "-Xms${xms}", "-Xmx${xmx}"
     systemProperties = System.properties
+}
+
+// Spotless configuration for code formatting
+spotless {
+    java {
+        target 'src/**/*.java'
+        googleJavaFormat('1.19.2').aosp().reflowLongStrings()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
 }

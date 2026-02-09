@@ -8,6 +8,7 @@ This is mainly for understanding the algorithm and what potential optimizations 
 - **K-Means Clustering**: Partitions vector space for efficient search
 - **SIMD Optimization**: Leverages Java Vector API for fast distance calculations
 - **Off-Heap Storage**: Reduces GC pressure for large datasets
+- **Index Serialization**: Save and load pre-built indexes for fast startup
 - **HDF5 Support**: Direct integration with standard benchmark datasets
 - **Configurable**: Flexible storage and clustering parameters
 
@@ -27,12 +28,36 @@ This is mainly for understanding the algorithm and what potential optimizations 
 ### Run
 
 ```bash
-# With default dataset
+# Build index and run search
+./gradlew run -Dvector.build=true
+
+# Load pre-built index and run search (faster)
 ./gradlew run
 
 # With custom dataset
-./gradlew run --args="path/to/dataset.hdf5"
+./gradlew run --args="path/to/dataset.hdf5" -Dvector.build=true
 ```
+
+## Index Serialization
+
+The library supports saving and loading pre-built indexes for fast startup:
+
+```bash
+# Build and save index (slow, one-time operation)
+./gradlew run -Dvector.build=true
+
+# Load saved index (fast, ~1-2 seconds)
+./gradlew run
+```
+
+**Index files created:**
+- `<filename>.clus` - Cluster metadata (centroids, posting lists)
+- `<filename>.vec` - Vector data (off-heap storage)
+
+**Benefits:**
+- Skip expensive k-means clustering on subsequent runs
+- Fast startup time (1-2s vs 132s)
+- Zero-copy I/O using FileChannel and MemorySegment
 
 ## Algorithm Overview
 
@@ -49,17 +74,20 @@ See [algo_notes.md](algo_notes.md) for detailed algorithm explanation.
 
 - `vector.storage`: Storage type (`ON_HEAP` or `OFF_HEAP`, default: `OFF_HEAP`)
 - `vector.debug`: Enable debug output (`true` or `false`, default: `false`)
+- `vector.build`: Build new index or load existing (`true` or `false`, default: `false`)
 
 ### Example
 
 ```bash
-./gradlew run -Dvector.storage=ON_HEAP -Dvector.debug=true
+./gradlew run -Dvector.storage=ON_HEAP -Dvector.debug=true -Dvector.build=true
 ```
 
 ## Performance
 All performance benchmarks are done on Apple M3 Pro 36GB RAM
 Tested on SIFT-128 dataset (1M vectors, 128 dimensions):
 - Index build time: 132 seconds  
+- Index serialization: ~2-3 seconds
+- Index deserialization: ~1-2 seconds
 - Search time (P50): 7ms
 - Search time (P90): 8ms 
 - Search time (P99): 11ms 
@@ -136,6 +164,16 @@ P100: 88 ms
 
 ```
 
+## Code Formatting
+
+```bash
+# Check formatting
+./gradlew spotlessCheck
+
+# Apply formatting
+./gradlew spotlessApply
+```
+
 ## Project Structure
 
 ```
@@ -143,6 +181,7 @@ src/main/java/org/navneev/
 ├── clustering/      # K-means implementation
 ├── dataset/         # HDF5 data loading
 ├── index/           # Main index implementation
+├── io/              # Index serialization/deserialization
 ├── model/           # Data structures
 ├── sampler/         # Vector sampling
 ├── storage/         # Vector storage (on/off-heap)

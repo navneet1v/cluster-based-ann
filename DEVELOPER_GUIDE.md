@@ -109,6 +109,22 @@ PCT_OF_CLUSTERS_TO_SEARCH = 0.01f  // 1% cluster search
 - Supports float/double conversion
 - Ground truth loading for evaluation
 
+### 7. I/O (`org.navneev.io`)
+
+**ClusterIndexIo**
+- Serializes and deserializes ClusterIndex to/from disk
+- Uses FileChannel for efficient I/O
+- Zero-copy transfers using MemorySegment
+- Splits data into two files:
+  - `.clus` - Cluster metadata (centroids, posting lists)
+  - `.vec` - Vector data (off-heap storage)
+
+**Key Methods:**
+```java
+public void writeIndex(String fileName, ClusterIndex index)
+public ClusterIndex readIndex(String fileName)
+```
+
 ## Development Setup
 
 ### Prerequisites
@@ -157,6 +173,27 @@ gradle --version
 ```
 
 ## Adding New Features
+
+### Index Serialization
+
+The library supports saving and loading indexes:
+
+```java
+// Save index
+ClusterBasedIndex index = new ClusterBasedIndex();
+index.buildIndex(vectors);
+index.serializeIndex("myindex");
+
+// Load index
+ClusterBasedIndex loadedIndex = new ClusterBasedIndex();
+loadedIndex.deSerializeIndex("myindex");
+```
+
+**File Format:**
+- Binary format using FileChannel
+- Native byte order for optimal performance
+- Zero-copy I/O from off-heap memory
+- Separate files for metadata and vectors
 
 ### Adding a New Distance Metric
 
@@ -228,8 +265,21 @@ public class HierarchicalClustering {
 # Download SIFT dataset
 wget http://ann-benchmarks.com/sift-128-euclidean.hdf5
 
-# Run benchmark
+# Build index
+./gradlew run --args="sift-128-euclidean.hdf5" -Dvector.build=true
+
+# Load and search
 ./gradlew run --args="sift-128-euclidean.hdf5"
+```
+
+### Code Formatting
+
+```bash
+# Check formatting
+./gradlew spotlessCheck
+
+# Apply formatting (Google Java Format - AOSP style)
+./gradlew spotlessApply
 ```
 
 ### Performance Profiling
@@ -270,11 +320,21 @@ java -XX:StartFlightRecording=filename=recording.jfr \
 ./gradlew run -Dvector.debug=true
 ```
 
+### Enable Index Building
+
+```bash
+./gradlew run -Dvector.build=true
+```
+
 ### Common Issues
 
 **OutOfMemoryError:**
 - Increase heap: `-Xmx8g`
 - Use off-heap storage: `-Dvector.storage=OFF_HEAP`
+
+**Slow Startup:**
+- Use pre-built index: remove `-Dvector.build=true`
+- Index deserialization is ~100x faster than building
 
 **Low Recall:**
 - Increase `PCT_OF_CLUSTERS_TO_SEARCH`

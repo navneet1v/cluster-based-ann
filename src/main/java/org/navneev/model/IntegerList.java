@@ -10,9 +10,7 @@ public class IntegerList {
     private int[] array;
     private int size;
 
-    /**
-     * Creates an empty list with default initial capacity of 4.
-     */
+    /** Creates an empty list with default initial capacity of 4. */
     public IntegerList() {
         this(INITIAL_CAPACITY);
     }
@@ -29,6 +27,7 @@ public class IntegerList {
 
     /**
      * Returns the number of elements in the list.
+     *
      * @return current size of the list
      */
     public int size() {
@@ -62,6 +61,7 @@ public class IntegerList {
 
     /**
      * Updates the element at the specified index with a new value.
+     *
      * @param index the index of the element to update
      * @param value the new value
      * @throws IllegalArgumentException if index is out of bounds
@@ -84,9 +84,12 @@ public class IntegerList {
 
     private void checkBounds(int index) {
         if (index < 0 || index >= size) {
-            throw new IllegalArgumentException("Index : " + index + " is less than 0 or it is greater than size of " +
-                    "list " + size);
+            throw new IllegalArgumentException(
+                    "Index : "
+                            + index
+                            + " is less than 0 or it is greater than size of "
+                            + "list "
+                            + size);
         }
     }
-
 }
